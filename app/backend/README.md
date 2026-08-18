@@ -20,7 +20,7 @@ pip install -r requirements.txt
 
 ### 3. Настройка базы данных
 
-Откройте файл `.env` и выберите тип БД:
+Скопируйте `.env.example` в `.env` и выберите тип БД:
 
 **Для SQLite (прототипирование):**
 ```env
@@ -40,7 +40,7 @@ POSTGRES_DB=bdds_payment_calendar
 
 ### 4. Запуск сервера Uvicorn
 
-**Вариант 1: Через Python**
+**Вариант 1: Через модуль uvicorn (рекомендуется)**
 ```bash
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
@@ -50,7 +50,7 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 python app/main.py
 ```
 
-**Вариант 3: С авто-перезагрузкой при разработке**
+**Вариант 3: С авто-перезагрузкой и логированием**
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level info
 ```
@@ -59,6 +59,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level info
 
 После запуска откройте в браузере:
 - **API Docs:** http://localhost:8000/docs
+- **ReDoc:** http://localhost:8000/redoc
 - **Health Check:** http://localhost:8000/api/health
 
 ## Тестовые учетные данные
@@ -79,7 +80,7 @@ backend/
 │   ├── __init__.py
 │   ├── config.py          # Настройки приложения (Strategy Pattern)
 │   ├── database.py        # Паттерн Стратегия для БД
-│   ├── main.py            # Точка входа FastAPI
+│   ├── main.py            # Точка входа FastAPI + uvicorn
 │   └── models.py          # SQLAlchemy модели
 ├── .env                   # Переменные окружения
 ├── .env.example           # Пример конфигурации
@@ -89,25 +90,49 @@ backend/
 
 ## Переключение между SQLite и PostgreSQL
 
-1. Остановите сервер
+1. Остановите сервер (Ctrl+C)
 2. Измените `DB_TYPE` в файле `.env`
-3. Запустите сервер заново
+3. Удалите старый файл БД (если был SQLite): `rm -f bdds_dev.db`
+4. Для PostgreSQL создайте БД: `createdb -U postgres bdds_payment_calendar`
+5. Запустите сервер заново
 
 Сервер автоматически определит тип БД и создаст нужное подключение.
 
 ## API Endpoints
 
-- `GET /` - Информация о API
-- `GET /api/health` - Проверка здоровья
-- `GET /api/users` - Список пользователей
-- `POST /api/users` - Создание пользователя
-- `GET /api/projects` - Список проектов
-- `POST /api/projects` - Создание проекта
-- `GET /api/contractors` - Список контрагентов
-- `POST /api/contractors` - Создание контрагента
-- `GET /api/categories` - Список статей бюджета
-- `POST /api/categories` - Создание статьи
-- `GET /api/payments` - Список платежей
-- `POST /api/payments` - Создание платежа
-- `PATCH /api/payments/{id}` - Обновление платежа (Финдир)
-- `POST /api/payments/rollover` - Перенос остатка
+| Метод | Endpoint | Описание |
+|-------|----------|----------|
+| GET | `/` | Информация о API |
+| GET | `/api/health` | Проверка здоровья |
+| GET | `/api/users` | Список пользователей |
+| POST | `/api/users` | Создание пользователя |
+| GET | `/api/projects` | Список проектов |
+| POST | `/api/projects` | Создание проекта |
+| GET | `/api/contractors` | Список контрагентов |
+| POST | `/api/contractors` | Создание контрагента |
+| GET | `/api/categories` | Список статей бюджета |
+| POST | `/api/categories` | Создание статьи |
+| GET | `/api/payments` | Список платежей |
+| POST | `/api/payments` | Создание платежа |
+| PATCH | `/api/payments/{id}` | Обновление платежа (Финдир) |
+| POST | `/api/payments/rollover` | Перенос остатка |
+
+## Остановка сервера
+
+```bash
+# В терминале нажмите Ctrl+C
+# Или
+pkill -f "uvicorn app.main:app"
+```
+
+## Логи и отладка
+
+Для сохранения логов в файл:
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --log-level info > /tmp/uvicorn.log 2>&1
+```
+
+Для просмотра в реальном времени:
+```bash
+tail -f /tmp/uvicorn.log
+```
