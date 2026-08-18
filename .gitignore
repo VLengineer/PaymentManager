@@ -1,30 +1,15 @@
 ```
+# Build artifacts
+dist/
+build/
+
 # Dependencies
 node_modules/
 
-# Build artifacts
-dist/
-
-# Package lock file
-package-lock.json
-
-# Environment files
-.env
-.env.local
-*.env.*
-
-# IDE files
-.vscode/
-.idea/
-
-# Temporary files
-*.tmp
-*.swp
-
-# Logs
+# Logs and temp files
 *.log
+*.tmp
 
-# OS files
-.DS_Store
-Thumbs.db
+# Editors
+.vscode/
 ```

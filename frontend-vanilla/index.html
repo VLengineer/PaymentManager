@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Платежный календарь БДДС</title>
+    
+    <!-- AG Grid Community -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.1/styles/ag-grid.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.1/styles/ag-theme-alpine.css">
+    <script src="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.1/dist/ag-grid-community.min.js"></script>
+    
+    <!-- Day.js для работы с датами -->
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/weekOfYear.js"></script>
+    <script>
+        dayjs.extend(window.dayjs_plugin_weekOfYear);
+    </script>
+    
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<body class="calendar-page">
+    <!-- Toast уведомления -->
+    <div id="toast-container" class="toast-container"></div>
+    
+    <!-- Header -->
+    <header class="main-header">
+        <div class="header-left">
+            <h1 class="logo">💰 Платежный календарь БДДС</h1>
+        </div>
+        <div class="header-right">
+            <span id="user-info" class="user-info">
+                <span class="user-name"></span>
+                <span class="user-role badge"></span>
+            </span>
+            <button id="btn-logout" class="btn btn-secondary btn-sm">Выйти</button>
+        </div>
+    </header>
+    
+    <div class="main-layout">
+        <!-- Sidebar с фильтрами -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Фильтры</h2>
+                <button id="btn-toggle-sidebar" class="btn-icon">✕</button>
+            </div>
+            
+            <!-- Выбор периода -->
+            <div class="filter-group">
+                <label for="period-type">Период:</label>
+                <select id="period-type">
+                    <option value="week">Недели</option>
+                    <option value="month">Месяцы</option>
+                    <option value="quarter">Кварталы</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="date-from">С:</label>
+                <input type="date" id="date-from">
+            </div>
+            
+            <div class="filter-group">
+                <label for="date-to">По:</label>
+                <input type="date" id="date-to">
+            </div>
+            
+            <!-- Выбор проектов -->
+            <div class="filter-group">
+                <label>ЦФО / Проекты:</label>
+                <div id="project-checkboxes" class="checkbox-group">
+                    <!-- Заполняется динамически -->
+                </div>
+            </div>
+            
+            <!-- Статьи бюджета -->
+            <div class="filter-group">
+                <label for="category-filter">Статьи:</label>
+                <select id="category-filter" multiple class="multi-select">
+                    <!-- Заполняется динамически -->
+                </select>
+            </div>
+            
+            <!-- Поиск по контрагенту -->
+            <div class="filter-group">
+                <label for="contractor-search">Контрагент:</label>
+                <input type="text" id="contractor-search" placeholder="Поиск...">
+            </div>
+            
+            <div class="filter-actions">
+                <button id="apply-filters" class="btn btn-primary btn-full">Применить</button>
+                <button id="reset-filters" class="btn btn-secondary btn-full">Сбросить</button>
+            </div>
+        </aside>
+        
+        <!-- Основной контент -->
+        <main class="main-content">
+            <!-- Toolbar -->
+            <div class="toolbar">
+                <button id="btn-toggle-sidebar-mobile" class="btn-icon">☰</button>
+                
+                <button id="btn-add-payment" class="btn btn-primary">
+                    <span>+ Добавить платеж</span>
+                </button>
+                
+                <button id="btn-rollover" class="btn btn-secondary" disabled>
+                    <span>↗ Перенести остатки</span>
+                </button>
+                
+                <button id="btn-export" class="btn btn-secondary">
+                    <span>📥 Экспорт в Excel</span>
+                </button>
+                
+                <button id="btn-lock-period" class="btn btn-danger" data-role="FIN_DIRECTOR" style="display: none;">
+                    <span>🔒 Закрыть период</span>
+                </button>
+                
+                <div id="toolbar-loader" class="toolbar-loader" style="display: none;">⏳</div>
+            </div>
+            
+            <!-- Матрица платежей -->
+            <div class="matrix-container">
+                <div id="grid" class="ag-theme-alpine"></div>
+            </div>
+            
+            <!-- Footer с итогами -->
+            <footer class="matrix-footer">
+                <div class="footer-row">
+                    <span class="footer-label">ИТОГО план:</span>
+                    <span id="footer-total-plan" class="footer-value">0 ₽</span>
+                </div>
+                <div class="footer-row">
+                    <span class="footer-label">ИТОГО факт:</span>
+                    <span id="footer-total-fact" class="footer-value">0 ₽</span>
+                </div>
+                <div class="footer-row">
+                    <span class="footer-label">Остаток кассы:</span>
+                    <span id="footer-cash-balance" class="footer-value highlight">0 ₽</span>
+                </div>
+            </footer>
+        </main>
+    </div>
+    
+    <!-- Модалка создания/редактирования платежа -->
+    <div id="payment-modal" class="modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="payment-modal-title">Новый платеж</h3>
+                <button class="btn-icon modal-close">✕</button>
+            </div>
+            
+            <form id="payment-form">
+                <input type="hidden" id="payment-id">
+                
+                <div class="form-group">
+                    <label for="project-id">Проект (ЦФО):</label>
+                    <select id="project-id" required></select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="category-id">Статья бюджета:</label>
+                    <select id="category-id" required></select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="contractor-input">Контрагент:</label>
+                    <input type="text" id="contractor-input" list="contractors" required>
+                    <datalist id="contractors"></datalist>
+                </div>
+                
+                <div class="form-group">
+                    <label for="period-start">Период (неделя):</label>
+                    <select id="period-start" required></select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="amount-plan">Сумма плана (₽):</label>
+                    <input type="number" id="amount-plan" min="0" step="0.01" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="comment">Комментарий:</label>
+                    <textarea id="comment" rows="3"></textarea>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary modal-close">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Модалка фиксации факта -->
+    <div id="fact-modal" class="modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Фиксация оплаты</h3>
+                <button class="btn-icon modal-close">✕</button>
+            </div>
+            
+            <form id="fact-form">
+                <input type="hidden" id="fact-payment-id">
+                
+                <div class="info-block">
+                    <p>План: <strong id="fact-plan">0 ₽</strong></p>
+                </div>
+                
+                <div class="form-group">
+                    <label for="fact-amount">Фактически оплачено (₽):</label>
+                    <input type="number" id="fact-amount" min="0" step="0.01" required>
+                </div>
+                
+                <div id="fact-warning" class="warning-block" style="display: none;">
+                    ⚠️ Остаток <span id="fact-remainder">0</span> ₽ будет доступен для переноса
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary modal-close">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Подтвердить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Модалка переноса остатка -->
+    <div id="rollover-modal" class="modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Перенос остатка</h3>
+                <button class="btn-icon modal-close">✕</button>
+            </div>
+            
+            <form id="rollover-form">
+                <input type="hidden" id="rollover-payment-id">
+                
+                <div class="info-block">
+                    <p>Исходный платеж: <strong id="rollover-original">0 ₽</strong></p>
+                    <p>Оплачено: <strong id="rollover-paid">0 ₽</strong></p>
+                    <p>К переносу: <strong class="highlight" id="rollover-remainder">0 ₽</strong></p>
+                </div>
+                
+                <div class="form-group">
+                    <label for="rollover-target">Целевой период:</label>
+                    <select id="rollover-target" required></select>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary modal-close">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Перенести</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Модалка закрытия периода -->
+    <div id="lock-period-modal" class="modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Закрыть период</h3>
+                <button class="btn-icon modal-close">✕</button>
+            </div>
+            
+            <form id="lock-period-form">
+                <div class="form-group">
+                    <label for="lock-month">Выберите месяц:</label>
+                    <input type="month" id="lock-month" required>
+                </div>
+                
+                <div class="warning-block">
+                    ⚠️ После закрытия периода редактирование платежей будет невозможно
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary modal-close">Отмена</button>
+                    <button type="submit" class="btn btn-danger">Закрыть период</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Скрипты -->
+    <script src="js/utils/formatters.js"></script>
+    <script src="js/utils/validators.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/components/toast.js"></script>
+    <script src="js/components/modals.js"></script>
+    <script src="js/components/sidebar.js"></script>
+    <script src="js/components/toolbar.js"></script>
+    <script src="js/components/matrix.js"></script>
+    <script src="js/calendar.js"></script>
+</body>
+</html>

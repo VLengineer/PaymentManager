@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Платежный календарь БДДС - Вход</title>
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<body class="login-page">
+    <div class="login-container">
+        <div class="login-box">
+            <div class="login-header">
+                <h1>💰 Платежный календарь БДДС</h1>
+                <p>Система планирования и контроля платежей</p>
+            </div>
+            
+            <form id="login-form" class="login-form">
+                <div class="form-group">
+                    <label for="username">Логин</label>
+                    <input type="text" id="username" name="username" required autocomplete="username">
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Пароль</label>
+                    <input type="password" id="password" name="password" required autocomplete="current-password">
+                </div>
+                
+                <div id="login-error" class="error-message" style="display: none;"></div>
+                
+                <button type="submit" class="btn btn-primary btn-full">
+                    <span class="btn-text">Войти</span>
+                    <span class="btn-loader" style="display: none;">⏳</span>
+                </button>
+            </form>
+            
+            <div class="login-demo">
+                <p><strong>Тестовые учетки:</strong></p>
+                <p>РП: <code>rp</code> / <code>demo</code></p>
+                <p>Финдир: <code>fin</code> / <code>demo</code></p>
+                <p>Админ: <code>admin</code> / <code>demo</code></p>
+            </div>
+        </div>
+    </div>
+    
+    <script src="js/utils/formatters.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/login.js"></script>
+</body>
+</html>
