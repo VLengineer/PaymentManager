@@ -1,56 +1,49 @@
 ```
-# Environment variables
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Database
+payment_calendar/payment_calendar.db
+
+# Environment
 .env
 .env.local
 .env.*
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-venv/
 .venv/
-.env/
-.venv.bak/
-.python-version
-pip-log.txt
-pip-selfcheck.json
-.pytest_cache/
-.mypy_cache/
-.coverage
-htmlcov/
-
-# Alembic
-alembic/versions/
-
-# Node.js
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-dist/
-build/
-
-# Vue/Vite
-dist/
-.node/
-.vite/
+venv/
+ENV/
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# OS
-.DS_Store
-Thumbs.db
+*.tmp
 
 # Logs
 *.log
 
 # Coverage
+.coverage
 coverage/
+htmlcov/
 ```
