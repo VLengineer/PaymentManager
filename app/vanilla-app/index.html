@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Платежный календарь (БДДС) - Полное приложение</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <h1>📊 Платежный календарь (БДДС)</h1>
+            <div class="user-info" id="user-info" style="display: none;">
+                <span id="current-user"></span>
+                <button class="btn btn-logout" onclick="logout()">Выйти</button>
+            </div>
+        </header>
+
+        <!-- Login Modal -->
+        <div id="login-modal" class="modal">
+            <div class="modal-content">
+                <h2>🔐 Вход в систему</h2>
+                <form id="login-form">
+                    <div class="form-group">
+                        <label for="username">Имя пользователя:</label>
+                        <input type="text" id="username" name="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Пароль:</label>
+                        <input type="password" id="password" name="password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Войти</button>
+                </form>
+                <div class="test-users">
+                    <p><strong>Тестовые пользователи:</strong></p>
+                    <ul>
+                        <li><code>admin / admin123</code> - Администратор</li>
+                        <li><code>fin_director / fin123</code> - Финансовый директор</li>
+                        <li><code>rp_user / rp123</code> - Руководитель проекта</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Navigation -->
+        <nav class="main-nav" id="main-nav" style="display: none;">
+            <button class="nav-btn active" data-tab="dashboard">📈 Дашборд</button>
+            <button class="nav-btn" data-tab="projects">📁 Проекты</button>
+            <button class="nav-btn" data-tab="contractors">🤝 Контрагенты</button>
+            <button class="nav-btn" data-tab="categories">📋 Статьи бюджета</button>
+            <button class="nav-btn" data-tab="payments">💰 Платежи</button>
+            <button class="nav-btn" data-tab="users" id="nav-users" style="display: none;">👥 Пользователи</button>
+        </nav>
+
+        <!-- Content Area -->
+        <main class="content" id="main-content">
+            <!-- Dashboard Tab -->
+            <section id="tab-dashboard" class="tab-content active">
+                <div class="status-card" id="connection-status">
+                    <h2>🔄 Подключение...</h2>
+                </div>
+                
+                <div class="dashboard-grid" id="dashboard-stats" style="display: none;">
+                    <div class="stat-card">
+                        <h3>📁 Всего проектов</h3>
+                        <p class="stat-value" id="stat-projects">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>🤝 Контрагентов</h3>
+                        <p class="stat-value" id="stat-contractors">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>📋 Статей бюджета</h3>
+                        <p class="stat-value" id="stat-categories">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>💰 Платежей</h3>
+                        <p class="stat-value" id="stat-payments">0</p>
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <h3>🚀 Быстрый старт</h3>
+                    <ol>
+                        <li>Убедитесь, что бэкенд запущен: <code>cd /workspace/app/backend && source venv/bin/activate && python -m uvicorn app.main:app --host 0.0.0.0 --port 8000</code></li>
+                        <li>Откройте Swagger UI: <a href="http://localhost:8000/docs" target="_blank">http://localhost:8000/docs</a></li>
+                        <li>Войдите под одним из тестовых пользователей</li>
+                    </ol>
+                </div>
+            </section>
+
+            <!-- Projects Tab -->
+            <section id="tab-projects" class="tab-content">
+                <div class="tab-header">
+                    <h2>📁 Проекты</h2>
+                    <button class="btn btn-primary" onclick="showModal('project-modal')">+ Добавить проект</button>
+                </div>
+                <div class="table-container">
+                    <table id="projects-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>CFO код</th>
+                                <th>Название</th>
+                            </tr>
+                        </thead>
+                        <tbody id="projects-tbody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Contractors Tab -->
+            <section id="tab-contractors" class="tab-content">
+                <div class="tab-header">
+                    <h2>🤝 Контрагенты</h2>
+                    <button class="btn btn-primary" onclick="showModal('contractor-modal')">+ Добавить контрагента</button>
+                </div>
+                <div class="table-container">
+                    <table id="contractors-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Название</th>
+                            </tr>
+                        </thead>
+                        <tbody id="contractors-tbody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Categories Tab -->
+            <section id="tab-categories" class="tab-content">
+                <div class="tab-header">
+                    <h2>📋 Статьи бюджета</h2>
+                    <button class="btn btn-primary" onclick="showModal('category-modal')">+ Добавить статью</button>
+                </div>
+                <div class="table-container">
+                    <table id="categories-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Название</th>
+                                <th>Тип</th>
+                            </tr>
+                        </thead>
+                        <tbody id="categories-tbody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Payments Tab -->
+            <section id="tab-payments" class="tab-content">
+                <div class="tab-header">
+                    <h2>💰 Платежи</h2>
+                    <button class="btn btn-primary" onclick="showModal('payment-modal')">+ Добавить платеж</button>
+                </div>
+                <div class="filters">
+                    <select id="filter-project" onchange="loadPayments()">
+                        <option value="">Все проекты</option>
+                    </select>
+                    <select id="filter-status" onchange="loadPayments()">
+                        <option value="">Все статусы</option>
+                        <option value="DRAFT">Черновик</option>
+                        <option value="APPROVED">Согласовано</option>
+                        <option value="PARTIAL">Частично оплачено</option>
+                        <option value="PAID">Оплачено</option>
+                        <option value="CANCELLED">Отменено</option>
+                    </select>
+                </div>
+                <div class="table-container">
+                    <table id="payments-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Проект</th>
+                                <th>Контрагент</th>
+                                <th>Статья</th>
+                                <th>Период</th>
+                                <th>План</th>
+                                <th>Факт</th>
+                                <th>Перенос</th>
+                                <th>Статус</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="payments-tbody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Users Tab -->
+            <section id="tab-users" class="tab-content">
+                <div class="tab-header">
+                    <h2>👥 Пользователи</h2>
+                    <button class="btn btn-primary" onclick="showModal('user-modal')">+ Добавить пользователя</button>
+                </div>
+                <div class="table-container">
+                    <table id="users-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Имя пользователя</th>
+                                <th>Роль</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-tbody"></tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Project Modal -->
+    <div id="project-modal" class="modal">
+        <div class="modal-content">
+            <h2 id="project-modal-title">Добавить проект</h2>
+            <form id="project-form">
+                <input type="hidden" id="project-id">
+                <div class="form-group">
+                    <label for="project-cfo-code">CFO код:</label>
+                    <input type="text" id="project-cfo-code" name="cfo_code" required>
+                </div>
+                <div class="form-group">
+                    <label for="project-name">Название:</label>
+                    <input type="text" id="project-name" name="name" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                    <button type="button" class="btn btn-secondary" onclick="hideModal('project-modal')">Отмена</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Contractor Modal -->
+    <div id="contractor-modal" class="modal">
+        <div class="modal-content">
+            <h2 id="contractor-modal-title">Добавить контрагента</h2>
+            <form id="contractor-form">
+                <input type="hidden" id="contractor-id">
+                <div class="form-group">
+                    <label for="contractor-name">Название:</label>
+                    <input type="text" id="contractor-name" name="name" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                    <button type="button" class="btn btn-secondary" onclick="hideModal('contractor-modal')">Отмена</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Category Modal -->
+    <div id="category-modal" class="modal">
+        <div class="modal-content">
+            <h2 id="category-modal-title">Добавить статью бюджета</h2>
+            <form id="category-form">
+                <input type="hidden" id="category-id">
+                <div class="form-group">
+                    <label for="category-name">Название:</label>
+                    <input type="text" id="category-name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="category-type">Тип:</label>
+                    <select id="category-type" name="category_type" required>
+                        <option value="EXPENSE">Расход</option>
+                        <option value="INCOME">Доход</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                    <button type="button" class="btn btn-secondary" onclick="hideModal('category-modal')">Отмена</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Payment Modal -->
+    <div id="payment-modal" class="modal">
+        <div class="modal-content">
+            <h2 id="payment-modal-title">Добавить платеж</h2>
+            <form id="payment-form">
+                <input type="hidden" id="payment-id">
+                <div class="form-group">
+                    <label for="payment-project">Проект:</label>
+                    <select id="payment-project" name="project_id" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="payment-contractor">Контрагент:</label>
+                    <select id="payment-contractor" name="contractor_id" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="payment-category">Статья:</label>
+                    <select id="payment-category" name="category_id" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="payment-period">Период (начало):</label>
+                    <input type="date" id="payment-period" name="period_start" required>
+                </div>
+                <div class="form-group">
+                    <label for="payment-amount-plan">Плановая сумма:</label>
+                    <input type="number" step="0.01" id="payment-amount-plan" name="amount_plan" required>
+                </div>
+                <div class="form-group">
+                    <label for="payment-comment">Комментарий:</label>
+                    <textarea id="payment-comment" name="comment" rows="3"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                    <button type="button" class="btn btn-secondary" onclick="hideModal('payment-modal')">Отмена</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Payment Edit Modal -->
+    <div id="payment-edit-modal" class="modal">
+        <div class="modal-content">
+            <h2>Редактировать платеж</h2>
+            <form id="payment-edit-form">
+                <input type="hidden" id="edit-payment-id">
+                <div class="form-group">
+                    <label for="edit-amount-fact">Фактическая сумма:</label>
+                    <input type="number" step="0.01" id="edit-amount-fact" name="amount_fact">
+                </div>
+                <div class="form-group">
+                    <label for="edit-comment">Комментарий:</label>
+                    <textarea id="edit-comment" name="comment" rows="3"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary">Обновить</button>
+                    <button type="button" class="btn btn-secondary" onclick="hideModal('payment-edit-modal')">Отмена</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- User Modal -->
+    <div id="user-modal" class="modal">
+        <div class="modal-content">
+            <h2 id="user-modal-title">Добавить пользователя</h2>
+            <form id="user-form">
+                <div class="form-group">
+                    <label for="user-username">Имя пользователя:</label>
+                    <input type="text" id="user-username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="user-password">Пароль:</label>
+                    <input type="password" id="user-password" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="user-role">Роль:</label>
+                    <select id="user-role" name="role" required>
+                        <option value="RP">Руководитель проекта (RP)</option>
+                        <option value="FIN_DIRECTOR">Финансовый директор</option>
+                        <option value="ADMIN">Администратор</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary">Создать</button>
+                    <button type="button" class="btn btn-secondary" onclick="hideModal('user-modal')">Отмена</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
