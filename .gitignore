@@ -1,1 +1,30 @@
-Nothing should be ignored based on the provided file changes. The only added file is a README.md, which is a source/config file and should not be ignored.
+```
+# Dependencies
+node_modules/
+
+# Build artifacts
+dist/
+
+# Package lock file
+package-lock.json
+
+# Environment files
+.env
+.env.local
+*.env.*
+
+# IDE files
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.swp
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+```
