@@ -1,214 +1,136 @@
 /**
- * Утилиты для форматирования данных
- * @module formatters
+ * Форматирование чисел и валюты
  */
 
 /**
- * Отформатировать сумму в рубли
+ * Форматирует число в денежный формат с разделителями
  * @param {number} amount - Сумма
- * @returns {string}
+ * @param {string} currency - Валюта (по умолчанию 'RUB')
+ * @returns {string} Отформатированная строка
  */
-function formatCurrency(amount) {
-  if (amount === null || amount === undefined || amount === 0) {
-    return '—';
-  }
-  return new Intl.NumberFormat('ru-RU', {
-    style: 'currency',
-    currency: 'RUB',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(amount);
+function formatCurrency(amount, currency = 'RUB') {
+    if (amount === null || amount === undefined || isNaN(amount)) {
+        return '—';
+    }
+    
+    return new Intl.NumberFormat('ru-RU', {
+        style: 'currency',
+        currency: currency,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(amount);
 }
 
 /**
- * Отформатировать дату в русский формат
- * @param {string|Date} date - Дата
- * @param {boolean} showYear - Показывать год
- * @returns {string}
+ * Форматирует число с разделителями тысяч
+ * @param {number} num - Число
+ * @returns {string} Отформатированная строка
  */
-function formatDate(date, showYear = false) {
-  if (!date) return '—';
-  
-  const d = new Date(date);
-  const options = {
-    day: 'numeric',
-    month: 'long',
-  };
-  
-  if (showYear) {
-    options.year = 'numeric';
-  }
-  
-  return d.toLocaleDateString('ru-RU', options);
+function formatNumber(num) {
+    if (num === null || num === undefined || isNaN(num)) {
+        return '—';
+    }
+    
+    return new Intl.NumberFormat('ru-RU').format(num);
 }
 
 /**
- * Получить номер недели из даты
+ * Форматирует дату в локальный формат
  * @param {string|Date} date - Дата
- * @returns {number}
+ * @param {string} format - Формат вывода
+ * @returns {string} Отформатированная дата
  */
-function getWeekNumber(date) {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() + 4 - (d.getDay() || 7));
-  const yearStart = new Date(d.getFullYear(), 0, 1);
-  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-}
-
-/**
- * Получить период (неделя/месяц/квартал) из даты
- * @param {string|Date} date - Дата
- * @param {string} type - 'week' | 'month' | 'quarter'
- * @returns {string}
- */
-function formatPeriod(date, type = 'week') {
-  if (!date) return '—';
-  
-  const d = new Date(date);
-  
-  if (type === 'week') {
-    const weekNum = getWeekNumber(d);
+function formatDate(date, format = 'DD.MM.YYYY') {
+    if (!date) return '—';
+    
+    const d = typeof date === 'string' ? new Date(date) : date;
+    
+    if (isNaN(d.getTime())) return '—';
+    
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
     const year = d.getFullYear();
-    return `Неделя ${weekNum} (${year})`;
-  }
-  
-  if (type === 'month') {
-    return d.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
-  }
-  
-  if (type === 'quarter') {
-    const month = d.getMonth();
-    const quarter = Math.floor(month / 3) + 1;
-    return `${quarter} квартал ${d.getFullYear()}`;
-  }
-  
-  return date.toString();
+    
+    return format
+        .replace('DD', day)
+        .replace('MM', month)
+        .replace('YYYY', year);
 }
 
 /**
- * Получить статус ячейки на основе данных платежа
- * @param {Object|null} cellData - Данные ячейки
- * @returns {string} 'EMPTY' | 'DRAFT' | 'APPROVED' | 'PAID' | 'PARTIAL' | 'LOCKED'
+ * Форматирует период (неделю/месяц/квартал)
+ * @param {string} periodId - ID периода (например, "2026-W23")
+ * @returns {string} Человекочитаемое название
  */
-function getCellStatus(cellData) {
-  if (!cellData || !cellData.payment_id) {
-    return 'EMPTY';
-  }
-  
-  if (cellData.is_locked) {
-    return 'LOCKED';
-  }
-  
-  switch (cellData.status) {
-    case 'PAID':
-      return 'PAID';
-    case 'PARTIAL':
-      return 'PARTIAL';
-    case 'APPROVED':
-      return 'APPROVED';
-    case 'DRAFT':
-    default:
-      return 'DRAFT';
-  }
+function formatPeriod(periodId) {
+    if (!periodId) return '—';
+    
+    // Неделя: 2026-W23
+    const weekMatch = periodId.match(/(\d{4})-W(\d{2})/);
+    if (weekMatch) {
+        const year = weekMatch[1];
+        const week = parseInt(weekMatch[2]);
+        // Примерное вычисление даты начала недели
+        const jan1 = new Date(year, 0, 1);
+        const weekStart = new Date(jan1);
+        weekStart.setDate(jan1.getDate() + (week - 1) * 7 - jan1.getDay() + 1);
+        
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        
+        return `${week} (${formatDate(weekStart, 'DD.MM')}–${formatDate(weekEnd, 'DD.MM')})`;
+    }
+    
+    // Месяц: 2026-M06
+    const monthMatch = periodId.match(/(\d{4})-M(\d{2})/);
+    if (monthMatch) {
+        const year = monthMatch[1];
+        const month = parseInt(monthMatch[2]);
+        const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+        return `${monthNames[month - 1]} ${year}`;
+    }
+    
+    // Квартал: 2026-Q2
+    const quarterMatch = periodId.match(/(\d{4})-Q(\d)/);
+    if (quarterMatch) {
+        const year = quarterMatch[1];
+        const quarter = quarterMatch[2];
+        return `${quarter} кв. ${year}`;
+    }
+    
+    return periodId;
 }
 
 /**
- * Получить CSS класс для статуса ячейки
- * @param {string} status - Статус ячейки
- * @returns {string}
+ * Получает статус ячейки на основе данных платежа
+ * @param {Object} cellData - Данные ячейки
+ * @returns {string} CSS класс статуса
  */
-function getCellClass(status) {
-  const classMap = {
-    'EMPTY': '',
-    'DRAFT': 'cell-draft',
-    'APPROVED': 'cell-approved',
-    'PAID': 'cell-paid',
-    'PARTIAL': 'cell-partial',
-    'LOCKED': 'cell-locked',
-  };
-  return classMap[status] || '';
+function getCellStatusClass(cellData) {
+    if (!cellData) return '';
+    
+    if (cellData.is_locked) return 'cell-locked';
+    
+    switch (cellData.status) {
+        case 'DRAFT': return 'cell-draft';
+        case 'APPROVED': return 'cell-approved';
+        case 'PAID': return 'cell-paid';
+        case 'PARTIAL': return 'cell-partial';
+        default: return '';
+    }
 }
 
 /**
- * Получить иконку для статуса ячейки
- * @param {string} status - Статус ячейки
- * @returns {string}
+ * Получает иконку для статуса платежа
+ * @param {string} status - Статус платежа
+ * @returns {string} Иконка
  */
 function getStatusIcon(status) {
-  const iconMap = {
-    'EMPTY': '',
-    'DRAFT': '✏️',
-    'APPROVED': '✓',
-    'PAID': '🔒',
-    'PARTIAL': '⚠️',
-    'LOCKED': '🔒',
-  };
-  return iconMap[status] || '';
+    switch (status) {
+        case 'DRAFT': return '✏️';
+        case 'APPROVED': return '✓';
+        case 'PAID': return '🔒';
+        case 'PARTIAL': return '⚠️';
+        default: return '';
+    }
 }
-
-/**
- * Получить текст для отображения в ячейке
- * @param {Object|null} cellData - Данные ячейки
- * @param {string} status - Статус ячейки
- * @returns {string}
- */
-function getCellText(cellData, status) {
-  if (status === 'EMPTY') {
-    return '—';
-  }
-  
-  if (status === 'PARTIAL') {
-    const fact = cellData.fact || 0;
-    const plan = cellData.plan || 0;
-    return `${formatCurrency(fact)} / ${formatCurrency(plan)}`;
-  }
-  
-  if (cellData.fact && cellData.fact > 0) {
-    return formatCurrency(cellData.fact);
-  }
-  
-  return formatCurrency(cellData.plan);
-}
-
-/**
- * Санитизировать строку (защита от XSS)
- * @param {string} str - Строка
- * @returns {string}
- */
-function sanitizeString(str) {
-  if (!str) return '';
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
-
-/**
- * Debounce функция
- * @param {Function} func - Функция
- * @param {number} wait - Задержка в мс
- * @returns {Function}
- */
-function debounce(func, wait) {
-  let timeout;
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  };
-}
-
-export {
-  formatCurrency,
-  formatDate,
-  getWeekNumber,
-  formatPeriod,
-  getCellStatus,
-  getCellClass,
-  getStatusIcon,
-  getCellText,
-  sanitizeString,
-  debounce,
-};

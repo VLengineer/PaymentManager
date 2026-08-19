@@ -1,129 +1,51 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Вход - Платежный календарь (БДДС)</title>
-  
-  <!-- Styles -->
-  <link rel="stylesheet" href="/css/main.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Платежный календарь БДДС - Вход</title>
+    <link rel="stylesheet" href="css/main.css">
 </head>
-<body>
-  <div class="login-page">
-    <div class="login-card">
-      <h1>📊 Платежный календарь</h1>
-      
-      <div id="login-error" class="login-error" style="display: none;"></div>
-      
-      <form class="login-form" id="login-form">
-        <div class="form-group">
-          <label for="username">Логин</label>
-          <input 
-            type="text" 
-            id="username" 
-            name="username" 
-            placeholder="Введите логин" 
-            required 
-            autocomplete="username"
-          />
+<body class="login-page">
+    <div class="login-container">
+        <div class="login-box">
+            <div class="login-header">
+                <h1>💰 Платежный календарь БДДС</h1>
+                <p>Система планирования и контроля платежей</p>
+            </div>
+            
+            <form id="login-form" class="login-form">
+                <div class="form-group">
+                    <label for="username">Логин</label>
+                    <input type="text" id="username" name="username" required autocomplete="username">
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Пароль</label>
+                    <input type="password" id="password" name="password" required autocomplete="current-password">
+                </div>
+                
+                <div id="login-error" class="error-message" style="display: none;"></div>
+                
+                <button type="submit" class="btn btn-primary btn-full">
+                    <span class="btn-text">Войти</span>
+                    <span class="btn-loader" style="display: none;">⏳</span>
+                </button>
+            </form>
+            
+            <div class="login-demo">
+                <p><strong>Тестовые учетки:</strong></p>
+                <p>РП: <code>rp</code> / <code>demo</code></p>
+                <p>Финдир: <code>fin</code> / <code>demo</code></p>
+                <p>Админ: <code>admin</code> / <code>demo</code></p>
+            </div>
         </div>
-        
-        <div class="form-group">
-          <label for="password">Пароль</label>
-          <input 
-            type="password" 
-            id="password" 
-            name="password" 
-            placeholder="Введите пароль" 
-            required 
-            autocomplete="current-password"
-          />
-        </div>
-        
-        <button type="submit" id="btn-login">
-          Войти
-        </button>
-      </form>
-      
-      <div class="info-section mt-20">
-        <p><strong>Тестовые пользователи:</strong></p>
-        <ul style="margin-top: 8px; font-size: 0.9em; color: #666;">
-          <li><code>admin / admin123</code> - Администратор</li>
-          <li><code>fin_director / fin123</code> - Финдиректор</li>
-          <li><code>rp_user / rp123</code> - Руководитель проекта</li>
-        </ul>
-      </div>
     </div>
-  </div>
-  
-  <script type="module">
-    import { login } from '/js/api.js';
-    import { setUser } from '/js/state.js';
     
-    const loginForm = document.getElementById('login-form');
-    const loginErrorEl = document.getElementById('login-error');
-    const btnLogin = document.getElementById('btn-login');
-    
-    // Проверяем есть ли уже токен
-    const existingToken = sessionStorage.getItem('jwt_token');
-    if (existingToken) {
-      window.location.href = '/index.html';
-    }
-    
-    loginForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      const username = document.getElementById('username').value;
-      const password = document.getElementById('password').value;
-      
-      // Блокируем кнопку на время запроса
-      btnLogin.disabled = true;
-      btnLogin.textContent = 'Вход...';
-      loginErrorEl.style.display = 'none';
-      
-      try {
-        const data = await login(username, password);
-        
-        // Сохраняем токен и данные пользователя
-        sessionStorage.setItem('jwt_token', data.access_token);
-        
-        // Получаем информацию о пользователе из токена или отдельного запроса
-        // Для простоты предполагаем что бэкенд возвращает user_info в ответе
-        // Или декодируем JWT токен
-        const userInfo = decodeJWT(data.access_token);
-        setUser(userInfo);
-        
-        // Редирект на главную
-        window.location.href = '/index.html';
-      } catch (error) {
-        console.error('Login failed:', error);
-        loginErrorEl.textContent = error.message || 'Ошибка входа';
-        loginErrorEl.style.display = 'block';
-        btnLogin.disabled = false;
-        btnLogin.textContent = 'Войти';
-      }
-    });
-    
-    /**
-     * Декодировать JWT токен для получения информации о пользователе
-     * @param {string} token - JWT токен
-     * @returns {Object} Данные пользователя
-     */
-    function decodeJWT(token) {
-      try {
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(
-          atob(base64).split('').map(c => 
-            '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
-          ).join('')
-        );
-        return JSON.parse(jsonPayload);
-      } catch (e) {
-        console.error('Failed to decode JWT:', e);
-        return {};
-      }
-    }
-  </script>
+    <script src="js/utils/formatters.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/login.js"></script>
 </body>
 </html>

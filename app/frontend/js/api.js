@@ -1,313 +1,262 @@
 /**
- * API модуль для всех fetch-запросов к бэкенду
- * @module api
+ * API клиент для взаимодействия с бэкендом
+ * Все запросы через fetch с заголовком Authorization: Bearer <JWT>
  */
 
 const API_BASE_URL = '/api';
 
 /**
- * Получить JWT токен из sessionStorage
- * @returns {string|null}
+ * Получает JWT токен из sessionStorage
+ * @returns {string|null} Токен или null
  */
 function getAuthToken() {
-  return sessionStorage.getItem('jwt_token');
+    return sessionStorage.getItem('jwt_token');
 }
 
 /**
- * Выполнить HTTP запрос с авторизацией
- * @param {string} url - URL endpoint
- * @param {RequestInit} options - Опции fetch
- * @returns {Promise<any>}
+ * Выполняет HTTP запрос к API
+ * @param {string} endpoint - URL endpoint
+ * @param {Object} options - Опции fetch
+ * @returns {Promise<any>} Ответ сервера
  */
-async function apiRequest(url, options = {}) {
-  const token = getAuthToken();
-  
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(token && { 'Authorization': `Bearer ${token}` }),
-    ...options.headers,
-  };
-
-  try {
-    const response = await fetch(`${API_BASE_URL}${url}`, {
-      ...options,
-      headers,
-    });
-
-    if (response.status === 401) {
-      // Token expired or invalid
-      sessionStorage.removeItem('jwt_token');
-      sessionStorage.removeItem('user_info');
-      window.location.href = '/login.html';
-      throw new Error('Unauthorized');
-    }
-
-    if (response.status === 403) {
-      showToast('Недостаточно прав для выполнения действия', 'error');
-      throw new Error('Forbidden');
-    }
-
-    if (response.status === 409) {
-      showToast('Платеж уже оплачен и заблокирован', 'warning');
-      throw new Error('Conflict');
-    }
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    // Handle empty responses
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      return await response.json();
+async function apiRequest(endpoint, options = {}) {
+    const token = getAuthToken();
+    
+    const headers = {
+        'Content-Type': 'application/json',
+        ...options.headers
+    };
+    
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
     }
     
-    return null;
-  } catch (error) {
-    console.error('API Request failed:', error);
-    if (error.message !== 'Unauthorized' && error.message !== 'Forbidden' && error.message !== 'Conflict') {
-      showToast('Ошибка сервера, попробуйте позже', 'error');
+    const config = {
+        ...options,
+        headers
+    };
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+        
+        // Обработка 401 Unauthorized
+        if (response.status === 401) {
+            sessionStorage.removeItem('jwt_token');
+            sessionStorage.removeItem('user_data');
+            window.location.href = 'login.html';
+            throw new Error('Unauthorized');
+        }
+        
+        // Обработка 403 Forbidden
+        if (response.status === 403) {
+            showToast('Недостаточно прав для выполнения операции', 'error');
+            throw new Error('Forbidden');
+        }
+        
+        // Обработка ошибок сервера
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || `HTTP ${response.status}`);
+        }
+        
+        // Пустой ответ (204 No Content)
+        if (response.status === 204) {
+            return null;
+        }
+        
+        return await response.json();
+    } catch (error) {
+        console.error('API Error:', error);
+        throw error;
     }
-    throw error;
-  }
 }
 
-// ==================== AUTH ====================
+/**
+ * GET запрос
+ * @param {string} endpoint - URL endpoint
+ * @param {Object} params - Query параметры
+ * @returns {Promise<any>}
+ */
+async function apiGet(endpoint, params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    const url = queryString ? `${endpoint}?${queryString}` : endpoint;
+    return apiRequest(url, { method: 'GET' });
+}
+
+/**
+ * POST запрос
+ * @param {string} endpoint - URL endpoint
+ * @param {Object} data - Данные запроса
+ * @returns {Promise<any>}
+ */
+async function apiPost(endpoint, data = {}) {
+    return apiRequest(endpoint, {
+        method: 'POST',
+        body: JSON.stringify(data)
+    });
+}
+
+/**
+ * PATCH запрос
+ * @param {string} endpoint - URL endpoint
+ * @param {Object} data - Данные запроса
+ * @returns {Promise<any>}
+ */
+async function apiPatch(endpoint, data = {}) {
+    return apiRequest(endpoint, {
+        method: 'PATCH',
+        body: JSON.stringify(data)
+    });
+}
+
+/**
+ * PUT запрос
+ * @param {string} endpoint - URL endpoint
+ * @param {Object} data - Данные запроса
+ * @returns {Promise<any>}
+ */
+async function apiPut(endpoint, data = {}) {
+    return apiRequest(endpoint, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+    });
+}
+
+/**
+ * DELETE запрос
+ * @param {string} endpoint - URL endpoint
+ * @returns {Promise<any>}
+ */
+async function apiDelete(endpoint) {
+    return apiRequest(endpoint, { method: 'DELETE' });
+}
+
+// ==================== Auth API ====================
 
 /**
  * Логин пользователя
- * @param {string} username
- * @param {string} password
- * @returns {Promise<{access_token: string, user: object}>}
+ * @param {string} username - Логин
+ * @param {string} password - Пароль
+ * @returns {Promise<{token: string, user: Object}>}
  */
 async function login(username, password) {
-  const response = await fetch(`${API_BASE_URL}/auth/login`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({
-      username,
-      password,
-    }),
-  });
-
-  if (!response.ok) {
-    if (response.status === 401) {
-      throw new Error('Неверный логин или пароль');
+    const response = await apiPost('/auth/login', { username, password });
+    
+    if (response.token) {
+        sessionStorage.setItem('jwt_token', response.token);
+        sessionStorage.setItem('user_data', JSON.stringify(response.user));
     }
-    throw new Error('Ошибка аутентификации');
-  }
-
-  const data = await response.json();
-  return data;
+    
+    return response;
 }
 
 /**
- * Logout пользователя
+ * Логаут пользователя
  */
 function logout() {
-  sessionStorage.removeItem('jwt_token');
-  sessionStorage.removeItem('user_info');
-  window.location.href = '/login.html';
+    sessionStorage.removeItem('jwt_token');
+    sessionStorage.removeItem('user_data');
+    window.location.href = 'login.html';
 }
 
-// ==================== CALENDAR ====================
+// ==================== Calendar API ====================
 
 /**
- * Получить данные матрицы платежного календаря
+ * Получение данных матрицы платежей
  * @param {Object} filters - Фильтры
  * @returns {Promise<Object>}
  */
-async function getCalendarMatrix(filters = {}) {
-  const params = new URLSearchParams();
-  
-  if (filters.project_ids?.length) {
-    filters.project_ids.forEach(id => params.append('project_ids[]', id));
-  }
-  
-  if (filters.date_from) {
-    params.append('date_from', filters.date_from);
-  }
-  
-  if (filters.date_to) {
-    params.append('date_to', filters.date_to);
-  }
-  
-  if (filters.category_ids?.length) {
-    filters.category_ids.forEach(id => params.append('category_ids[]', id));
-  }
-  
-  if (filters.contractor_search) {
-    params.append('contractor_search', filters.contractor_search);
-  }
-
-  if (filters.period_type) {
-    params.append('period_type', filters.period_type);
-  }
-
-  return await apiRequest(`/calendar/matrix?${params.toString()}`);
+async function getMatrixData(filters = {}) {
+    return apiGet('/calendar/matrix', filters);
 }
 
 /**
- * Создать новый план платежа
+ * Создание плана платежа
  * @param {Object} paymentData - Данные платежа
  * @returns {Promise<Object>}
  */
-async function createPaymentPlan(paymentData) {
-  return await apiRequest('/calendar/plan', {
-    method: 'POST',
-    body: JSON.stringify(paymentData),
-  });
+async function createPayment(paymentData) {
+    return apiPost('/calendar/plan', paymentData);
 }
 
 /**
- * Редактировать платеж (только DRAFT)
+ * Редактирование платежа (только DRAFT)
  * @param {number} paymentId - ID платежа
- * @param {Object} paymentData - Новые данные
+ * @param {Object} paymentData - Данные платежа
  * @returns {Promise<Object>}
  */
 async function updatePayment(paymentId, paymentData) {
-  return await apiRequest(`/calendar/payment/${paymentId}`, {
-    method: 'PATCH',
-    body: JSON.stringify(paymentData),
-  });
+    return apiPatch(`/calendar/payment/${paymentId}`, paymentData);
 }
 
 /**
- * Удалить платеж (только DRAFT)
+ * Удаление платежа (только DRAFT)
  * @param {number} paymentId - ID платежа
  * @returns {Promise<void>}
  */
 async function deletePayment(paymentId) {
-  return await apiRequest(`/calendar/payment/${paymentId}`, {
-    method: 'DELETE',
-  });
+    return apiDelete(`/calendar/payment/${paymentId}`);
 }
 
 /**
- * Зафиксировать факт оплаты (только Финдир)
- * @param {Object} factData - Данные факта оплаты
+ * Фиксация факта оплаты (только Финдир)
+ * @param {Object} factData - Данные факта
  * @returns {Promise<Object>}
  */
-async function fixPaymentFact(factData) {
-  return await apiRequest('/calendar/fact', {
-    method: 'PATCH',
-    body: JSON.stringify(factData),
-  });
+async function fixFact(factData) {
+    return apiPatch('/calendar/fact', factData);
 }
 
 /**
- * Перенести остаток платежа
+ * Перенос остатка
  * @param {Object} rolloverData - Данные переноса
  * @returns {Promise<Object>}
  */
 async function rolloverPayment(rolloverData) {
-  return await apiRequest('/calendar/rollover', {
-    method: 'POST',
-    body: JSON.stringify(rolloverData),
-  });
+    return apiPost('/calendar/rollover', rolloverData);
 }
 
 /**
- * Закрыть период (только Финдир)
- * @param {string} period - Период для закрытия
+ * Закрытие периода (только Финдир)
+ * @param {string} period - Период (месяц)
  * @returns {Promise<Object>}
  */
 async function lockPeriod(period) {
-  return await apiRequest('/calendar/lock-period', {
-    method: 'POST',
-    body: JSON.stringify({ period }),
-  });
+    return apiPost('/calendar/lock-period', { period });
 }
 
-// ==================== DICTIONARIES ====================
+// ==================== Dictionaries API ====================
 
 /**
- * Получить справочник проектов (ЦФО)
+ * Получение справочника проектов
  * @returns {Promise<Array>}
  */
 async function getProjects() {
-  return await apiRequest('/dictionaries/projects');
+    return apiGet('/dictionaries/projects');
 }
 
 /**
- * Получить справочник контрагентов
+ * Получение справочника контрагентов
  * @returns {Promise<Array>}
  */
 async function getContractors() {
-  return await apiRequest('/dictionaries/contractors');
+    return apiGet('/dictionaries/contractors');
 }
 
 /**
- * Получить справочник статей бюджета
+ * Получение справочника статей бюджета
  * @returns {Promise<Array>}
  */
 async function getCategories() {
-  return await apiRequest('/dictionaries/categories');
+    return apiGet('/dictionaries/categories');
 }
 
-// ==================== REPORTS ====================
+// ==================== Reports API ====================
 
 /**
- * Получить сводные данные для отчетов
+ * Получение сводных данных для отчетов
  * @returns {Promise<Object>}
  */
-async function getReportsSummary() {
-  return await apiRequest('/reports/summary');
+async function getSummaryReport() {
+    return apiGet('/reports/summary');
 }
-
-// ==================== ADMIN ====================
-
-/**
- * Получить список пользователей (только Админ)
- * @returns {Promise<Array>}
- */
-async function getUsers() {
-  return await apiRequest('/admin/users');
-}
-
-/**
- * Обновить маппинг пользователь-проект (только Админ)
- * @param {number} userId - ID пользователя
- * @param {Array<number>} projectIds - IDs проектов
- * @returns {Promise<Object>}
- */
-async function updateUserProjects(userId, projectIds) {
-  return await apiRequest(`/admin/users/${userId}/projects`, {
-    method: 'PUT',
-    body: JSON.stringify({ project_ids: projectIds }),
-  });
-}
-
-// Export all functions
-export {
-  // Auth
-  login,
-  logout,
-  getAuthToken,
-  
-  // Calendar
-  getCalendarMatrix,
-  createPaymentPlan,
-  updatePayment,
-  deletePayment,
-  fixPaymentFact,
-  rolloverPayment,
-  lockPeriod,
-  
-  // Dictionaries
-  getProjects,
-  getContractors,
-  getCategories,
-  
-  // Reports
-  getReportsSummary,
-  
-  // Admin
-  getUsers,
-  updateUserProjects,
-  
-  // Utils
-  apiRequest,
-};

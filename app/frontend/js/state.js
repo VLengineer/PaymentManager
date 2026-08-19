@@ -1,224 +1,223 @@
 /**
- * Модуль управления состоянием приложения
- * @module state
+ * Глобальное состояние приложения
+ * Хранит данные пользователя, фильтры и настройки
  */
 
-// Глобальное состояние
-const state = {
-  /** @type {Object|null} */
-  user: null,
-  
-  /** @type {string} */
-  periodType: 'week',
-  
-  /** @type {Object} */
-  filters: {
-    project_ids: [],
-    date_from: null,
-    date_to: null,
-    category_ids: [],
-    contractor_search: '',
-    period_type: 'week',
-  },
-  
-  /** @type {Array} */
-  projects: [],
-  
-  /** @type {Array} */
-  contractors: [],
-  
-  /** @type {Array} */
-  categories: [],
-  
-  /** @type {Object|null} */
-  matrixData: null,
-  
-  /** @type {boolean} */
-  isLoading: false,
+// Роли пользователей
+const USER_ROLES = {
+    RP: 'RP',
+    FIN_DIRECTOR: 'FIN_DIRECTOR',
+    ADMIN: 'ADMIN'
 };
 
 /**
- * Инициализировать состояние из sessionStorage
+ * Получает текущего пользователя из sessionStorage
+ * @returns {Object|null} Данные пользователя
  */
-function initState() {
-  const userInfo = sessionStorage.getItem('user_info');
-  if (userInfo) {
+function getCurrentUser() {
+    const userData = sessionStorage.getItem('user_data');
+    if (!userData) return null;
+    
     try {
-      state.user = JSON.parse(userInfo);
+        return JSON.parse(userData);
     } catch (e) {
-      console.error('Failed to parse user_info from sessionStorage');
+        console.error('Failed to parse user data:', e);
+        return null;
     }
-  }
 }
 
 /**
- * Установить пользователя
- * @param {Object} user - Данные пользователя
+ * Проверяет, авторизован ли пользователь
+ * @returns {boolean}
  */
-function setUser(user) {
-  state.user = user;
-  sessionStorage.setItem('user_info', JSON.stringify(user));
+function isAuthenticated() {
+    return !!sessionStorage.getItem('jwt_token') && !!getCurrentUser();
 }
 
 /**
- * Очистить данные пользователя
+ * Проверяет роль пользователя
+ * @param {string} role - Требуемая роль
+ * @returns {boolean}
  */
-function clearUser() {
-  state.user = null;
-  sessionStorage.removeItem('user_info');
+function hasRole(role) {
+    const user = getCurrentUser();
+    if (!user) return false;
+    
+    return user.role === role;
 }
 
 /**
- * Получить текущего пользователя
- * @returns {Object|null}
+ * Проверяет, имеет ли пользователь доступ к проекту
+ * @param {number} projectId - ID проекта
+ * @returns {boolean}
  */
-function getUser() {
-  return state.user;
+function hasProjectAccess(projectId) {
+    const user = getCurrentUser();
+    if (!user) return false;
+    
+    // Админ и Финдир имеют доступ ко всем проектам
+    if (user.role === USER_ROLES.ADMIN || user.role === USER_ROLES.FIN_DIRECTOR) {
+        return true;
+    }
+    
+    // РП имеет доступ только к своим проектам
+    if (user.role === USER_ROLES.RP && user.allowed_project_ids) {
+        return user.allowed_project_ids.includes(projectId);
+    }
+    
+    return false;
 }
 
 /**
- * Проверить может ли пользователь редактировать платеж
+ * Проверяет, может ли пользователь редактировать платеж
  * @param {Object} payment - Данные платежа
  * @returns {boolean}
  */
 function canEditPayment(payment) {
-  if (!state.user) return false;
-  
-  // Оплаченные платежи нельзя редактировать
-  if (payment.status === 'PAID') return false;
-  
-  // Заблокированные периоды нельзя редактировать
-  if (payment.is_locked) return false;
-  
-  // Финдир может редактировать всё
-  if (state.user.role === 'FIN_DIRECTOR') return true;
-  
-  // Админ может редактировать всё
-  if (state.user.role === 'ADMIN') return true;
-  
-  // РП может редактировать только свои проекты
-  if (state.user.role === 'RP') {
-    return state.user.allowed_project_ids?.includes(payment.project_id);
-  }
-  
-  return false;
+    const user = getCurrentUser();
+    if (!user) return false;
+    
+    // Оплаченные платежи нельзя редактировать
+    if (payment.status === 'PAID') return false;
+    
+    // Заблокированные периоды нельзя редактировать
+    if (payment.is_locked) return false;
+    
+    // Финдир может редактировать все
+    if (user.role === USER_ROLES.FIN_DIRECTOR) return true;
+    
+    // Админ может редактировать все
+    if (user.role === USER_ROLES.ADMIN) return true;
+    
+    // РП может редактировать только свои проекты и только DRAFT
+    if (user.role === USER_ROLES.RP) {
+        if (payment.status !== 'DRAFT') return false;
+        return user.allowed_project_ids && user.allowed_project_ids.includes(payment.project_id);
+    }
+    
+    return false;
 }
 
 /**
- * Проверить может ли пользователь видеть проект
- * @param {number} projectId - ID проекта
+ * Проверяет, может ли пользователь фиксировать факт оплаты
+ * @param {Object} payment - Данные платежа
  * @returns {boolean}
  */
-function canViewProject(projectId) {
-  if (!state.user) return false;
-  
-  // Админ и Финдир видят все проекты
-  if (state.user.role === 'ADMIN' || state.user.role === 'FIN_DIRECTOR') {
+function canFixFact(payment) {
+    const user = getCurrentUser();
+    if (!user) return false;
+    
+    // Только Финдир и Админ могут фиксировать факт
+    if (user.role !== USER_ROLES.FIN_DIRECTOR && user.role !== USER_ROLES.ADMIN) {
+        return false;
+    }
+    
+    // Оплаченные платежи нельзя изменять
+    if (payment.status === 'PAID') return false;
+    
+    // Заблокированные периоды нельзя изменять
+    if (payment.is_locked) return false;
+    
     return true;
-  }
-  
-  // РП видит только свои проекты
-  if (state.user.role === 'RP') {
-    return state.user.allowed_project_ids?.includes(projectId);
-  }
-  
-  return false;
 }
 
 /**
- * Установить тип периода
- * @param {string} type - 'week' | 'month' | 'quarter'
+ * Проверяет, может ли пользователь закрывать периоды
+ * @returns {boolean}
  */
-function setPeriodType(type) {
-  state.periodType = type;
-  state.filters.period_type = type;
+function canLockPeriod() {
+    const user = getCurrentUser();
+    if (!user) return false;
+    
+    return user.role === USER_ROLES.FIN_DIRECTOR || user.role === USER_ROLES.ADMIN;
 }
 
 /**
- * Обновить фильтры
- * @param {Object} newFilters - Новые значения фильтров
+ * Проверяет, может ли пользователь переносить остатки
+ * @param {Object} payment - Данные платежа
+ * @returns {boolean}
  */
-function updateFilters(newFilters) {
-  state.filters = { ...state.filters, ...newFilters };
+function canRolloverPayment(payment) {
+    const user = getCurrentUser();
+    if (!user) return false;
+    
+    // Перенос доступен только для PARTIAL статусов
+    if (payment.status !== 'PARTIAL') return false;
+    
+    // Заблокированные периоды нельзя изменять
+    if (payment.is_locked) return false;
+    
+    // Финдир и Админ могут переносить всегда
+    if (user.role === USER_ROLES.FIN_DIRECTOR || user.role === USER_ROLES.ADMIN) {
+        return true;
+    }
+    
+    // РП может переносить только свои проекты
+    if (user.role === USER_ROLES.RP) {
+        return user.allowed_project_ids && user.allowed_project_ids.includes(payment.project_id);
+    }
+    
+    return false;
 }
 
 /**
- * Сбросить фильтры к значениям по умолчанию
+ * Глобальное состояние фильтров
+ */
+const appState = {
+    filters: {
+        periodType: 'week',
+        dateFrom: null,
+        dateTo: null,
+        projectIds: [],
+        categoryIds: [],
+        contractorSearch: ''
+    },
+    
+    matrixData: null,
+    selectedRow: null,
+    isLoading: false
+};
+
+/**
+ * Устанавливает фильтр
+ * @param {string} key - Ключ фильтра
+ * @param {*} value - Значение
+ */
+function setFilter(key, value) {
+    appState.filters[key] = value;
+}
+
+/**
+ * Получает текущие фильтры
+ * @returns {Object}
+ */
+function getFilters() {
+    return { ...appState.filters };
+}
+
+/**
+ * Сбрасывает все фильтры
  */
 function resetFilters() {
-  state.filters = {
-    project_ids: [],
-    date_from: null,
-    date_to: null,
-    category_ids: [],
-    contractor_search: '',
-    period_type: state.periodType,
-  };
+    appState.filters = {
+        periodType: 'week',
+        dateFrom: null,
+        dateTo: null,
+        projectIds: [],
+        categoryIds: [],
+        contractorSearch: ''
+    };
 }
 
 /**
- * Установить справочник проектов
- * @param {Array} projects
- */
-function setProjects(projects) {
-  state.projects = projects;
-}
-
-/**
- * Установить справочник контрагентов
- * @param {Array} contractors
- */
-function setContractors(contractors) {
-  state.contractors = contractors;
-}
-
-/**
- * Установить справочник статей
- * @param {Array} categories
- */
-function setCategories(categories) {
-  state.categories = categories;
-}
-
-/**
- * Установить данные матрицы
- * @param {Object} matrixData
- */
-function setMatrixData(matrixData) {
-  state.matrixData = matrixData;
-}
-
-/**
- * Установить индикатор загрузки
+ * Устанавливает состояние загрузки
  * @param {boolean} isLoading
  */
 function setLoading(isLoading) {
-  state.isLoading = isLoading;
+    appState.isLoading = isLoading;
+    
+    const loader = document.getElementById('toolbar-loader');
+    if (loader) {
+        loader.style.display = isLoading ? 'inline' : 'none';
+    }
 }
-
-/**
- * Получить текущее состояние
- * @returns {Object}
- */
-function getState() {
-  return { ...state };
-}
-
-export {
-  state,
-  initState,
-  setUser,
-  clearUser,
-  getUser,
-  canEditPayment,
-  canViewProject,
-  setPeriodType,
-  updateFilters,
-  resetFilters,
-  setProjects,
-  setContractors,
-  setCategories,
-  setMatrixData,
-  setLoading,
-  getState,
-};
