@@ -1,222 +1,117 @@
 /**
- * Утилиты для валидации данных
- * @module validators
+ * Валидация данных форм
  */
 
 /**
- * Проверить является ли значение числом
- * @param {*} value - Значение
- * @returns {boolean}
- */
-function isNumber(value) {
-  return typeof value === 'number' && !isNaN(value) && isFinite(value);
-}
-
-/**
- * Проверить является ли значение положительным числом
- * @param {*} value - Значение
- * @returns {boolean}
- */
-function isPositiveNumber(value) {
-  return isNumber(value) && value > 0;
-}
-
-/**
- * Валидировать сумму платежа
+ * Валидирует сумму платежа
  * @param {number} amount - Сумма
- * @returns {{valid: boolean, error: string|null}}
+ * @returns {{valid: boolean, message: string}} Результат валидации
  */
 function validateAmount(amount) {
-  if (amount === null || amount === undefined) {
-    return { valid: false, error: 'Сумма обязательна' };
-  }
-  
-  if (!isNumber(amount)) {
-    return { valid: false, error: 'Сумма должна быть числом' };
-  }
-  
-  if (amount < 0) {
-    return { valid: false, error: 'Сумма не может быть отрицательной' };
-  }
-  
-  if (amount === 0) {
-    return { valid: false, error: 'Сумма должна быть больше нуля' };
-  }
-  
-  return { valid: true, error: null };
+    if (amount === null || amount === undefined) {
+        return { valid: false, message: 'Сумма обязательна' };
+    }
+    
+    const num = parseFloat(amount);
+    
+    if (isNaN(num)) {
+        return { valid: false, message: 'Некорректное число' };
+    }
+    
+    if (num < 0) {
+        return { valid: false, message: 'Сумма не может быть отрицательной' };
+    }
+    
+    if (num > 1000000000) {
+        return { valid: false, message: 'Сумма слишком большая' };
+    }
+    
+    return { valid: true, message: '' };
 }
 
 /**
- * Валидировать факт оплаты
+ * Валидирует факт оплаты
  * @param {number} factAmount - Фактическая сумма
  * @param {number} planAmount - Плановая сумма
- * @returns {{valid: boolean, error: string|null}}
+ * @returns {{valid: boolean, message: string}} Результат валидации
  */
 function validateFactAmount(factAmount, planAmount) {
-  const amountValidation = validateAmount(factAmount);
-  if (!amountValidation.valid) {
-    return amountValidation;
-  }
-  
-  if (factAmount > planAmount) {
-    return { 
-      valid: false, 
-      error: `Факт не может превышать план (${planAmount})` 
-    };
-  }
-  
-  return { valid: true, error: null };
+    const amountValidation = validateAmount(factAmount);
+    if (!amountValidation.valid) {
+        return amountValidation;
+    }
+    
+    const fact = parseFloat(factAmount);
+    const plan = parseFloat(planAmount);
+    
+    if (fact > plan) {
+        return { valid: false, message: 'Факт не может превышать план' };
+    }
+    
+    return { valid: true, message: '' };
 }
 
 /**
- * Валидировать выбор проекта
- * @param {*} projectId - ID проекта
- * @returns {{valid: boolean, error: string|null}}
+ * Валидирует обязательное поле
+ * @param {*} value - Значение
+ * @param {string} fieldName - Название поля
+ * @returns {{valid: boolean, message: string}} Результат валидации
  */
-function validateProjectId(projectId) {
-  if (projectId === null || projectId === undefined) {
-    return { valid: false, error: 'Проект обязателен' };
-  }
-  
-  if (!isNumber(projectId)) {
-    return { valid: false, error: 'Некорректный ID проекта' };
-  }
-  
-  return { valid: true, error: null };
+function validateRequired(value, fieldName = 'Поле') {
+    if (value === null || value === undefined || value === '') {
+        return { valid: false, message: `${fieldName} обязательно` };
+    }
+    
+    return { valid: true, message: '' };
 }
 
 /**
- * Валидировать выбор статьи
- * @param {*} categoryId - ID статьи
- * @returns {{valid: boolean, error: string|null}}
+ * Валидирует email
+ * @param {string} email - Email
+ * @returns {{valid: boolean, message: string}} Результат валидации
  */
-function validateCategoryId(categoryId) {
-  if (categoryId === null || categoryId === undefined) {
-    return { valid: false, error: 'Статья обязательна' };
-  }
-  
-  if (!isNumber(categoryId)) {
-    return { valid: false, error: 'Некорректный ID статьи' };
-  }
-  
-  return { valid: true, error: null };
+function validateEmail(email) {
+    if (!email) {
+        return { valid: false, message: 'Email обязателен' };
+    }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    
+    if (!emailRegex.test(email)) {
+        return { valid: false, message: 'Некорректный email' };
+    }
+    
+    return { valid: true, message: '' };
 }
 
 /**
- * Валидировать выбор контрагента
- * @param {*} contractorId - ID контрагента
- * @returns {{valid: boolean, error: string|null}}
+ * Валидирует дату
+ * @param {string} date - Дата строкой
+ * @returns {{valid: boolean, message: string}} Результат валидации
  */
-function validateContractorId(contractorId) {
-  if (contractorId === null || contractorId === undefined) {
-    return { valid: false, error: 'Контрагент обязателен' };
-  }
-  
-  if (!isNumber(contractorId)) {
-    return { valid: false, error: 'Некорректный ID контрагента' };
-  }
-  
-  return { valid: true, error: null };
+function validateDate(date) {
+    if (!date) {
+        return { valid: false, message: 'Дата обязательна' };
+    }
+    
+    const d = new Date(date);
+    
+    if (isNaN(d.getTime())) {
+        return { valid: false, message: 'Некорректная дата' };
+    }
+    
+    return { valid: true, message: '' };
 }
 
 /**
- * Валидировать период
- * @param {string} period - Период
- * @returns {{valid: boolean, error: string|null}}
+ * Санитизирует строку (защита от XSS)
+ * @param {string} str - Входная строка
+ * @returns {string} Очищенная строка
  */
-function validatePeriod(period) {
-  if (!period) {
-    return { valid: false, error: 'Период обязателен' };
-  }
-  
-  // Проверка формата периода (например, "2026-W23")
-  const periodRegex = /^\d{4}-(W\d{2}|M\d{2}|Q\d)$/;
-  if (!periodRegex.test(period)) {
-    return { valid: false, error: 'Некорректный формат периода' };
-  }
-  
-  return { valid: true, error: null };
+function sanitizeString(str) {
+    if (!str) return '';
+    
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
 }
-
-/**
- * Валидировать комментарий (опционально)
- * @param {string} comment - Комментарий
- * @param {number} maxLength - Максимальная длина
- * @returns {{valid: boolean, error: string|null}}
- */
-function validateComment(comment, maxLength = 500) {
-  if (!comment) {
-    return { valid: true, error: null }; // Комментарий опционален
-  }
-  
-  if (typeof comment !== 'string') {
-    return { valid: false, error: 'Комментарий должен быть строкой' };
-  }
-  
-  if (comment.length > maxLength) {
-    return { valid: false, error: `Комментарий не должен превышать ${maxLength} символов` };
-  }
-  
-  return { valid: true, error: null };
-}
-
-/**
- * Валидировать форму создания платежа
- * @param {Object} formData - Данные формы
- * @returns {{valid: boolean, errors: Object}}
- */
-function validatePaymentForm(formData) {
-  const errors = {};
-  let isValid = true;
-  
-  const projectResult = validateProjectId(formData.project_id);
-  if (!projectResult.valid) {
-    errors.project_id = projectResult.error;
-    isValid = false;
-  }
-  
-  const categoryResult = validateCategoryId(formData.category_id);
-  if (!categoryResult.valid) {
-    errors.category_id = categoryResult.error;
-    isValid = false;
-  }
-  
-  const contractorResult = validateContractorId(formData.contractor_id);
-  if (!contractorResult.valid) {
-    errors.contractor_id = contractorResult.error;
-    isValid = false;
-  }
-  
-  const periodResult = validatePeriod(formData.period);
-  if (!periodResult.valid) {
-    errors.period = periodResult.error;
-    isValid = false;
-  }
-  
-  const amountResult = validateAmount(formData.amount_plan);
-  if (!amountResult.valid) {
-    errors.amount_plan = amountResult.error;
-    isValid = false;
-  }
-  
-  const commentResult = validateComment(formData.comment);
-  if (!commentResult.valid) {
-    errors.comment = commentResult.error;
-    isValid = false;
-  }
-  
-  return { valid: isValid, errors };
-}
-
-export {
-  isNumber,
-  isPositiveNumber,
-  validateAmount,
-  validateFactAmount,
-  validateProjectId,
-  validateCategoryId,
-  validateContractorId,
-  validatePeriod,
-  validateComment,
-  validatePaymentForm,
-};
