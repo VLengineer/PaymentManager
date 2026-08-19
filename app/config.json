@@ -1,0 +1,16 @@
+{
+  "server": {
+    "port": 5500,
+    "root": "/workspace/app/frontend",
+    "proxy": {
+      "/api": {
+        "target": "http://127.0.0.1:8000",
+        "changeOrigin": true
+      }
+    }
+  },
+  "logging": {
+    "level": "DEBUG",
+    "file": "/workspace/app/logs/app.log"
+  }
+}
