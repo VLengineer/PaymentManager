@@ -10,25 +10,29 @@
  * @returns {Promise<Object>} Данные пользователя
  */
 async function login(username, password) {
+    const formData = new URLSearchParams();
+    formData.append('username', username);
+    formData.append('password', password);
+    
     const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/x-www-form-urlencoded'
         },
-        body: JSON.stringify({ username, password })
+        body: formData
     });
 
     if (!response.ok) {
-        const error = await response.json();
+        const error = await response.json().catch(() => ({ detail: 'Ошибка входа' }));
         throw new Error(error.detail || 'Ошибка входа');
     }
 
     const data = await response.json();
-    
+
     // Сохраняем токен в sessionStorage
     sessionStorage.setItem('jwt_token', data.access_token);
     sessionStorage.setItem('user_data', JSON.stringify(data.user));
-    
+
     return data;
 }
 
