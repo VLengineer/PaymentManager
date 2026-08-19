@@ -6,24 +6,35 @@
 
 ```
 /workspace/
-└── app/
-    └── backend/           # Основной бэкенд на FastAPI
-        ├── app/
-        │   ├── config.py      # Настройки приложения
-        │   ├── database.py    # Стратегии подключения к БД (SQLite/PostgreSQL)
-        │   ├── main.py        # Точка входа FastAPI + uvicorn
-        │   └── models.py      # SQLAlchemy модели
-        ├── .env.example       # Пример конфигурации
-        ├── requirements.txt   # Зависимости Python
-        └── README.md          # Локальная документация
+├── backend/               # Бэкенд на FastAPI
+│   ├── app/
+│   │   ├── config.py      # Настройки приложения
+│   │   ├── database.py    # Стратегии подключения к БД (SQLite/PostgreSQL)
+│   │   ├── main.py        # Точка входа FastAPI + uvicorn
+│   │   └── models.py      # SQLAlchemy модели
+│   ├── .env.example       # Пример конфигурации
+│   ├── requirements.txt   # Зависимости Python
+│   └── README.md          # Документация бэкенда
+│
+└── frontend/              # Фронтенд на Vue 3 + TypeScript
+    ├── src/
+    │   ├── main.ts        # Точка входа Vue приложения
+    │   └── App.vue        # Корневой компонент
+    ├── index.html         # HTML шаблон
+    ├── package.json       # Зависимости npm
+    ├── vite.config.ts     # Конфигурация Vite
+    ├── tsconfig.json      # TypeScript настройки
+    └── README.md          # Документация фронтенда
 ```
 
 ## 🚀 Быстрый старт
 
-### 1. Установка зависимостей
+### Бэкенд
+
+#### 1. Установка зависимостей
 
 ```bash
-cd /workspace/app/backend
+cd /workspace/backend
 python -m venv venv
 source venv/bin/activate  # Linux/Mac
 pip install -r requirements.txt
@@ -31,7 +42,7 @@ pip install -r requirements.txt
 
 **Примечание:** В проекте используется библиотека `argon2-cffi` для хеширования паролей (вместо bcrypt), что решает проблемы совместимости и обеспечивает более высокую безопасность.
 
-### 2. Настройка базы данных
+#### 2. Настройка базы данных
 
 Скопируйте `.env.example` в `.env` и настройте:
 
@@ -51,7 +62,7 @@ POSTGRES_PORT=5432
 POSTGRES_DB=bdds_payment_calendar
 ```
 
-### 3. Запуск сервера (Uvicorn)
+#### 3. Запуск сервера (Uvicorn)
 
 **Вариант 1: Через модуль uvicorn (рекомендуется)**
 ```bash
@@ -69,6 +80,29 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level info
 ```
 
 Сервер запустится на: **http://localhost:8000**
+
+### Фронтенд
+
+#### 1. Установка зависимостей
+
+```bash
+cd /workspace/frontend
+npm install
+```
+
+#### 2. Запуск в режиме разработки
+
+```bash
+npm run dev
+```
+
+Фронтенд запустится на: **http://localhost:5173**
+
+#### 3. Сборка для продакшена
+
+```bash
+npm run build
+```
 
 ## 🔍 Проверка работы
 
